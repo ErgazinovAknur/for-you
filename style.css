@@ -183,17 +183,21 @@ input:focus, .pixel-btn:focus, .tab:focus{ outline:3px dashed var(--pink-deep); 
 .status-line{ font-family:var(--font-mono); font-size:16px; color:var(--pink-deep); min-height:20px; }
 .song-list{ list-style:none; padding:0; margin-top:16px; display:grid; gap:10px; }
 .song-item{
-  display:flex; align-items:center; justify-content:space-between; gap:10px;
   background:var(--pink-bg); border:3px solid var(--pink-mid); padding:12px 14px;
 }
+.song-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
 .song-info b{ display:block; font-size:15px; }
 .song-info span{ font-size:13px; color:#7a4a63; }
+.song-actions{ display:flex; flex-wrap:wrap; gap:6px; }
 .song-actions a, .song-actions button{
-  font-family:var(--font-pixel); font-size:9px; margin-left:6px;
+  font-family:var(--font-pixel); font-size:9px;
   background:var(--cream); border:2px solid var(--plum); padding:6px 8px; cursor:pointer; color:var(--plum);
   text-decoration:none; display:inline-block;
 }
 .song-actions button.del{ background:#ffdbe8; }
+.song-actions button.play{ background:var(--gold); }
+.embed-holder:not(:empty){ margin-top:10px; }
+.embed-holder iframe, .embed-holder audio{ display:block; }
 
 /* ===== calendar ===== */
 .cal-nav{ display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:14px; }

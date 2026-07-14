@@ -75,6 +75,35 @@ const songForm = document.getElementById("song-form");
 const songList = document.getElementById("song-list");
 const songStatus = document.getElementById("song-status");
 
+/* Определяем тип ссылки и возвращаем HTML плеера, встроенного в страницу.
+   Поддержаны: YouTube, Spotify, прямые ссылки на аудиофайлы (.mp3/.ogg/.wav).
+   Если ссылка другого типа (например Яндекс.Музыка не даёт встраивание
+   без своего плеера) — возвращаем null, тогда покажем обычную кнопку-ссылку. */
+function getEmbedHtml(url) {
+  if (!url) return null;
+
+  // YouTube: youtube.com/watch?v=ID  или  youtu.be/ID  или youtube shorts
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]{6,})/);
+  if (yt) {
+    return `<iframe width="100%" height="180" src="https://www.youtube.com/embed/${yt[1]}"
+      title="плеер" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen loading="lazy"></iframe>`;
+  }
+
+  // Spotify: open.spotify.com/track/ID
+  const sp = url.match(/open\.spotify\.com\/track\/([\w]+)/);
+  if (sp) {
+    return `<iframe style="border-radius:8px" src="https://open.spotify.com/embed/track/${sp[1]}"
+      width="100%" height="152" frameborder="0" allow="encrypted-media" loading="lazy"></iframe>`;
+  }
+
+  // прямая ссылка на аудиофайл
+  if (/\.(mp3|ogg|wav|m4a)(\?.*)?$/i.test(url)) {
+    return `<audio controls style="width:100%" src="${escapeAttr(url)}"></audio>`;
+  }
+
+  return null; // не умеем встраивать — покажем просто ссылку
+}
+
 function renderSongs(songs) {
   songList.innerHTML = "";
   if (!songs.length) {
@@ -84,22 +113,47 @@ function renderSongs(songs) {
   songs.forEach(song => {
     const li = document.createElement("li");
     li.className = "song-item";
-    const linkHtml = song.url
-      ? `<a href="${escapeAttr(song.url)}" target="_blank" rel="noopener">▶ слушать</a>`
+
+    const canEmbed = !!getEmbedHtml(song.url);
+    const playBtn = song.url
+      ? (canEmbed
+          ? `<button class="play" data-id="${song.id}">▶ слушать здесь</button>`
+          : `<a href="${escapeAttr(song.url)}" target="_blank" rel="noopener">▶ открыть ссылку</a>`)
       : "";
+
     li.innerHTML = `
-      <div class="song-info">
-        <b>${escapeHtml(song.title)}</b>
-        <span>${escapeHtml(song.artist || "")}${song.from ? " · от " + escapeHtml(song.from) : ""}</span>
+      <div class="song-row">
+        <div class="song-info">
+          <b>${escapeHtml(song.title)}</b>
+          <span>${escapeHtml(song.artist || "")}${song.from ? " · от " + escapeHtml(song.from) : ""}</span>
+        </div>
+        <div class="song-actions">
+          ${playBtn}
+          <button class="del" data-id="${song.id}">✕</button>
+        </div>
       </div>
-      <div class="song-actions">
-        ${linkHtml}
-        <button class="del" data-id="${song.id}">✕</button>
-      </div>`;
+      <div class="embed-holder" id="embed-${song.id}"></div>`;
     songList.appendChild(li);
   });
+
   songList.querySelectorAll(".del").forEach(btn => {
     btn.addEventListener("click", () => deleteSong(btn.dataset.id));
+  });
+
+  // клик на "слушать здесь" — вставляем плеер лениво (только когда нажали,
+  // чтобы страница не грузила сразу кучу видео/аудио)
+  songList.querySelectorAll(".play").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const song = songs.find(s => s.id === btn.dataset.id);
+      const holder = document.getElementById(`embed-${song.id}`);
+      if (holder.innerHTML) {
+        holder.innerHTML = ""; // повторный клик — свернуть плеер
+        btn.textContent = "▶ слушать здесь";
+      } else {
+        holder.innerHTML = getEmbedHtml(song.url);
+        btn.textContent = "✕ свернуть";
+      }
+    });
   });
 }
 
