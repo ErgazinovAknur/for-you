@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>для тебя.exe 💗</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><rect width=%2216%22 height=%2216%22 fill=%22%23ffcfe3%22/><rect x=%223%22 y=%226%22 width=%224%22 height=%224%22 fill=%22%23e85c9c%22/><rect x=%229%22 y=%226%22 width=%224%22 height=%224%22 fill=%22%23e85c9c%22/><rect x=%227%22 y=%228%22 width=%222%22 height=%222%22 fill=%22%235b2a45%22/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="crt-overlay" aria-hidden="true"></div>
+
+<!-- floating bows decoration -->
+<div class="floaty-bows" aria-hidden="true">
+  <span class="fbow" style="left:6%; animation-delay:0s;">🎀</span>
+  <span class="fbow" style="left:22%; animation-delay:2.4s;">🎀</span>
+  <span class="fbow" style="left:78%; animation-delay:1.1s;">🎀</span>
+  <span class="fbow" style="left:90%; animation-delay:3.4s;">🎀</span>
+</div>
+
+<header class="topbar">
+  <div class="logo">
+    <svg class="bow-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+      <rect x="1" y="5" width="5" height="6" fill="#e85c9c"/>
+      <rect x="10" y="5" width="5" height="6" fill="#e85c9c"/>
+      <rect x="6" y="6" width="4" height="4" fill="#ffd166"/>
+      <rect x="0" y="6" width="2" height="2" fill="#ff9dc4"/>
+      <rect x="14" y="6" width="2" height="2" fill="#ff9dc4"/>
+    </svg>
+    <h1>ДЛЯ&nbsp;ТЕБЯ<span class="blink">_</span></h1>
+  </div>
+  <p class="subtitle">маленький сайт с большим смыслом 💌</p>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Разделы сайта">
+  <button class="tab active" data-tab="home" role="tab" aria-selected="true">🏠 ГЛАВНАЯ</button>
+  <button class="tab" data-tab="playlist" role="tab" aria-selected="false">🎧 ПЛЕЙЛИСТ</button>
+  <button class="tab" data-tab="calendar" role="tab" aria-selected="false">🗓️ КАЛЕНДАРЬ</button>
+  <button class="tab" data-tab="game" role="tab" aria-selected="false">🎮 ИГРА</button>
+</nav>
+
+<main>
+
+  <!-- HOME -->
+  <section id="home" class="view active pixel-box">
+    <div class="home-grid">
+      <div class="mascot-wrap">
+        <svg class="mascot" viewBox="0 0 32 32" shape-rendering="crispEdges" aria-hidden="true">
+          <!-- pixel cat with bow -->
+          <rect x="8" y="4" width="4" height="4" fill="#ffcfe3"/>
+          <rect x="20" y="4" width="4" height="4" fill="#ffcfe3"/>
+          <rect x="8" y="8" width="16" height="12" fill="#ffcfe3"/>
+          <rect x="10" y="12" width="2" height="2" fill="#5b2a45"/>
+          <rect x="20" y="12" width="2" height="2" fill="#5b2a45"/>
+          <rect x="14" y="16" width="4" height="2" fill="#e85c9c"/>
+          <rect x="8" y="20" width="16" height="6" fill="#ffe6f0"/>
+          <rect x="12" y="2" width="2" height="4" fill="#e85c9c"/>
+          <rect x="18" y="2" width="2" height="4" fill="#e85c9c"/>
+          <rect x="14" y="1" width="4" height="3" fill="#ffd166"/>
+        </svg>
+      </div>
+      <div class="home-text">
+        <h2 class="section-title">приветик! (˶ᵔ ᵕ ᵔ˶)</h2>
+        <p id="daily-msg" class="daily-msg">загружаю сообщение дня…</p>
+        <button id="new-msg-btn" class="pixel-btn small">✨ ещё сообщение</button>
+        <div class="home-links">
+          <p>здесь спрятано:</p>
+          <ul class="home-list">
+            <li>🎧 плейлист, который можно пополнять вместе</li>
+            <li>🗓️ календарь с важными датами и дедлайнами</li>
+            <li>🎮 мини-игра, чтобы отвлечься и попрыгать</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAYLIST -->
+  <section id="playlist" class="view pixel-box">
+    <h2 class="section-title">🎧 наш плейлист</h2>
+    <p class="hint">добавляй сюда песни — они появятся у всех, кто открывает сайт.</p>
+    <form id="song-form" class="song-form">
+      <input type="text" id="song-title" placeholder="название песни" required maxlength="80">
+      <input type="text" id="song-artist" placeholder="исполнитель" maxlength="60">
+      <input type="url" id="song-link" placeholder="ссылка (YouTube / Spotify / Яндекс.Музыка)" maxlength="300">
+      <input type="text" id="song-from" placeholder="от кого 💌 (необязательно)" maxlength="30">
+      <button type="submit" class="pixel-btn">＋ добавить песню</button>
+    </form>
+    <div id="song-status" class="status-line"></div>
+    <ul id="song-list" class="song-list"></ul>
+  </section>
+
+  <!-- CALENDAR -->
+  <section id="calendar" class="view pixel-box">
+    <h2 class="section-title">🗓️ календарь</h2>
+    <p class="hint">отмечай дни рождения, свидания и дедлайны — ничего не забудется.</p>
+
+    <div class="cal-nav">
+      <button id="cal-prev" class="pixel-btn small">◀</button>
+      <span id="cal-month-label" class="cal-month-label"></span>
+      <button id="cal-next" class="pixel-btn small">▶</button>
+    </div>
+
+    <div id="cal-grid" class="cal-grid"></div>
+
+    <h3 class="section-title small-title">📌 ближайшие важные даты</h3>
+    <ul id="upcoming-list" class="upcoming-list"></ul>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="view pixel-box">
+    <h2 class="section-title">🎮 прыг-прыг котик</h2>
+    <p class="hint">жми ПРОБЕЛ или тапни по экрану, чтобы прыгать через шипы 🌵💗</p>
+    <div class="game-wrap">
+      <canvas id="game-canvas" width="600" height="200"></canvas>
+      <div id="game-overlay" class="game-overlay">
+        <p id="game-msg">нажми, чтобы начать</p>
+      </div>
+    </div>
+    <div class="game-scores">
+      <span>счёт: <b id="score">0</b></span>
+      <span>рекорд: <b id="highscore">0</b></span>
+    </div>
+  </section>
+
+</main>
+
+<!-- modal for calendar note details -->
+<div id="modal-overlay" class="modal-overlay">
+  <div class="modal pixel-box">
+    <button id="modal-close" class="pixel-btn small close-btn">✕</button>
+    <h3 id="modal-date-label" class="section-title small-title"></h3>
+    <ul id="modal-note-list" class="note-list"></ul>
+    <form id="note-form" class="note-form">
+      <input type="text" id="note-text" placeholder="что за дата? 🎀" maxlength="120" required>
+      <label class="checkbox-line">
+        <input type="checkbox" id="note-important">
+        это важно / дедлайн ⚠️
+      </label>
+      <button type="submit" class="pixel-btn">сохранить</button>
+    </form>
+  </div>
+</div>
+
+<footer>
+  сделано с 💗 · <span id="year"></span>
+</footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
