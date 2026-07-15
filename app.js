@@ -1,4 +1,3 @@
-cat > /home/claude/site/app.js << 'JSEOF'
 /* =========================================================
    НАСТРОЙКА FIREBASE (общий плейлист и календарь онлайн)
    Инструкция — в README.md. Без этого шага плейлист и
@@ -127,7 +126,7 @@ songForm.addEventListener("submit", async (e) => {
   if (!url) return;
   const type = detectSongType(url);
   if (!type) {
-    songStatus.textContent = "не получилось распознать ссылку 😢 (нужен YouTube, Spotify или прямой .mp3)";
+    songStatus.textContent = "не получилось распознать ссылку (нужен YouTube, Spotify или прямой .mp3)";
     return;
   }
   songStatus.textContent = "добавляю...";
@@ -136,8 +135,8 @@ songForm.addEventListener("submit", async (e) => {
 
   if (cloudEnabled) {
     db.collection("songs").add(song)
-      .then(() => { songStatus.textContent = "добавлено ✔"; setTimeout(() => songStatus.textContent = "", 1500); })
-      .catch(err => { songStatus.textContent = "ошибка сохранения :("; console.error(err); });
+      .then(() => { songStatus.textContent = "добавлено"; setTimeout(() => songStatus.textContent = "", 1500); })
+      .catch(err => { songStatus.textContent = "ошибка сохранения"; console.error(err); });
   } else {
     const songs = localStore.read("songs", []);
     song.id = "local-" + song.ts;
@@ -160,35 +159,35 @@ function deleteSong(id) {
 }
 
 function toggleSpotifyEmbed(song) {
-  const holder = document.getElementById(`embed-${song.id}`);
+  const holder = document.getElementById("embed-" + song.id);
   if (!holder) return;
   if (holder.innerHTML) { holder.innerHTML = ""; return; }
   const spId = extractSpotifyId(song.url);
   holder.innerHTML = spId
-    ? `<iframe style="border-radius:8px" src="https://open.spotify.com/embed/track/${spId}" width="100%" height="152" frameborder="0" allow="encrypted-media" loading="lazy"></iframe>`
-    : `<a href="${escapeAttr(song.url)}" target="_blank" rel="noopener">открыть в Spotify</a>`;
+    ? '<iframe style="border-radius:8px" src="https://open.spotify.com/embed/track/' + spId + '" width="100%" height="152" frameborder="0" allow="encrypted-media" loading="lazy"></iframe>'
+    : '<a href="' + escapeAttr(song.url) + '" target="_blank" rel="noopener">открыть в Spotify</a>';
 }
 
 function renderSongs(songs) {
   songsCache = songs;
   songList.innerHTML = "";
   if (!songs.length) {
-    songList.innerHTML = `<li class="song-item"><span>пока пусто... вставь первую ссылку 🎀</span></li>`;
+    songList.innerHTML = '<li class="song-item"><span>пока пусто... вставь первую ссылку</span></li>';
     return;
   }
   songs.forEach((song, idx) => {
     const li = document.createElement("li");
     li.className = "song-item" + (idx === currentIndex ? " now-playing" : "");
     const icon = song.type === "youtube" ? "▶️" : song.type === "spotify" ? "🟢" : "🎵";
-    li.innerHTML = `
-      <div class="song-row">
-        <button class="song-select" data-idx="${idx}">
-          <span class="song-icon">${icon}</span>
-          <span class="song-title-text">${escapeHtml(song.title || "без названия")}</span>
-        </button>
-        <div class="song-actions"><button class="del" data-id="${song.id}">✕</button></div>
-      </div>
-      ${song.type === "spotify" ? `<div class="embed-holder" id="embed-${song.id}"></div>` : ""}`;
+    li.innerHTML =
+      '<div class="song-row">' +
+        '<button class="song-select" data-idx="' + idx + '">' +
+          '<span class="song-icon">' + icon + '</span>' +
+          '<span class="song-title-text">' + escapeHtml(song.title || "без названия") + '</span>' +
+        '</button>' +
+        '<div class="song-actions"><button class="del" data-id="' + song.id + '">✕</button></div>' +
+      '</div>' +
+      (song.type === "spotify" ? '<div class="embed-holder" id="embed-' + song.id + '"></div>' : "");
     songList.appendChild(li);
   });
 
@@ -207,14 +206,14 @@ function renderSongs(songs) {
 
 if (cloudEnabled) {
   db.collection("songs").orderBy("ts", "desc").onSnapshot(snap => {
-    renderSongs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    renderSongs(snap.docs.map(d => Object.assign({ id: d.id }, d.data())));
   }, err => {
     console.error(err);
     songStatus.textContent = "не удалось подключиться к базе, проверь настройки Firebase";
   });
 } else {
   renderSongs(localStore.read("songs", []));
-  songStatus.textContent = "⚠ офлайн-режим: настрой Firebase в app.js, чтобы плейлист был общим онлайн";
+  songStatus.textContent = "офлайн-режим: настрой Firebase в app.js, чтобы плейлист был общим онлайн";
 }
 
 /* ---- плеер: YouTube IFrame API ---- */
@@ -236,17 +235,17 @@ function createOrLoadYt(videoId) {
   target.style.display = "block";
   if (!ytPlayer) {
     ytPlayer = new YT.Player("yt-target", {
-      videoId,
+      videoId: videoId,
       playerVars: { rel: 0, modestbranding: 1 },
       events: {
-        onReady: (e) => {
+        onReady: function (e) {
           e.target.setVolume(volume);
           e.target.setPlaybackRate(playbackRate);
           e.target.playVideo();
           setPlayPauseIcon(true);
           startYtProgressTimer();
         },
-        onStateChange: (e) => {
+        onStateChange: function (e) {
           if (e.data === YT.PlayerState.ENDED) handleTrackEnd();
           else if (e.data === YT.PlayerState.PLAYING) setPlayPauseIcon(true);
           else if (e.data === YT.PlayerState.PAUSED) setPlayPauseIcon(false);
@@ -263,7 +262,7 @@ function createOrLoadYt(videoId) {
 }
 function startYtProgressTimer() {
   clearInterval(progressTimer);
-  progressTimer = setInterval(() => {
+  progressTimer = setInterval(function () {
     if (ytPlayer && ytPlayer.getCurrentTime) {
       updateProgress(ytPlayer.getCurrentTime(), ytPlayer.getDuration());
     }
@@ -284,10 +283,10 @@ function loadAudioTrack(song) {
   audioEl.playbackRate = playbackRate;
   audioEl.volume = volume / 100;
   audioEl.currentTime = 0;
-  audioEl.play().catch(() => {});
+  audioEl.play().catch(function () {});
   setPlayPauseIcon(true);
-  audioEl.onended = () => handleTrackEnd();
-  audioEl.ontimeupdate = () => updateProgress(audioEl.currentTime, audioEl.duration);
+  audioEl.onended = function () { handleTrackEnd(); };
+  audioEl.ontimeupdate = function () { updateProgress(audioEl.currentTime, audioEl.duration); };
 }
 
 function pauseAll() {
@@ -314,7 +313,7 @@ function playTrackByIndex(idx) {
   pauseAll();
   currentIndex = idx;
   document.getElementById("player-title").textContent = song.title || "без названия";
-  document.getElementById("player-sub").textContent = `трек ${idx + 1} из ${songsCache.length}`;
+  document.getElementById("player-sub").textContent = "трек " + (idx + 1) + " из " + songsCache.length;
   if (song.type === "youtube") loadYoutubeTrack(song);
   else if (song.type === "audio") loadAudioTrack(song);
   renderSongs(songsCache);
@@ -327,6 +326,7 @@ function togglePlayPause() {
     return;
   }
   const song = songsCache[currentIndex];
+  if (!song) return;
   if (song.type === "audio") {
     if (audioEl.paused) { audioEl.play(); setPlayPauseIcon(true); }
     else { audioEl.pause(); setPlayPauseIcon(false); }
@@ -340,6 +340,7 @@ function togglePlayPause() {
 function stopTrack() {
   if (currentIndex === -1) return;
   const song = songsCache[currentIndex];
+  if (!song) return;
   if (song.type === "audio") { audioEl.pause(); audioEl.currentTime = 0; }
   else if (song.type === "youtube" && ytPlayer && ytPlayer.stopVideo) { ytPlayer.stopVideo(); }
   setPlayPauseIcon(false);
@@ -370,7 +371,7 @@ function handleTrackEnd() {
   else {
     pauseAll();
     setPlayPauseIcon(false);
-    document.getElementById("player-sub").textContent = "плейлист закончился 🎀";
+    document.getElementById("player-sub").textContent = "плейлист закончился";
   }
 }
 
@@ -400,7 +401,7 @@ function fmtTime(s) {
   s = Math.floor(s || 0);
   const m = Math.floor(s / 60);
   const sec = String(s % 60).padStart(2, "0");
-  return `${m}:${sec}`;
+  return m + ":" + sec;
 }
 function updateProgress(current, duration) {
   const fill = document.getElementById("progress-fill");
@@ -420,12 +421,12 @@ document.getElementById("btn-next").addEventListener("click", nextTrack);
 document.getElementById("btn-playpause").addEventListener("click", togglePlayPause);
 document.getElementById("btn-stop").addEventListener("click", stopTrack);
 document.getElementById("btn-repeat").addEventListener("click", cycleRepeat);
-document.getElementById("speed-down").addEventListener("click", () => changeSpeed(-0.25));
-document.getElementById("speed-up").addEventListener("click", () => changeSpeed(0.25));
-document.getElementById("vol-down").addEventListener("click", () => setVolume(volume - 10));
-document.getElementById("vol-up").addEventListener("click", () => setVolume(volume + 10));
-document.getElementById("vol-slider").addEventListener("input", (e) => setVolume(parseInt(e.target.value, 10)));
-document.getElementById("progress-bar").addEventListener("click", (e) => {
+document.getElementById("speed-down").addEventListener("click", function () { changeSpeed(-0.25); });
+document.getElementById("speed-up").addEventListener("click", function () { changeSpeed(0.25); });
+document.getElementById("vol-down").addEventListener("click", function () { setVolume(volume - 10); });
+document.getElementById("vol-up").addEventListener("click", function () { setVolume(volume + 10); });
+document.getElementById("vol-slider").addEventListener("input", function (e) { setVolume(parseInt(e.target.value, 10)); });
+document.getElementById("progress-bar").addEventListener("click", function (e) {
   if (currentIndex === -1) return;
   const song = songsCache[currentIndex];
   const rect = e.currentTarget.getBoundingClientRect();
@@ -454,15 +455,15 @@ viewDate.setDate(1);
 let selectedDateKey = null;
 let allNotes = [];
 
-function dateKey(y, m, d) { return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
+function dateKey(y, m, d) { return y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0"); }
 
 function renderCalendar() {
   const y = viewDate.getFullYear();
   const m = viewDate.getMonth();
-  calLabel.textContent = `${MONTHS_RU[m]} ${y}`;
+  calLabel.textContent = MONTHS_RU[m] + " " + y;
   calGrid.innerHTML = "";
 
-  DOW_RU.forEach(d => {
+  DOW_RU.forEach(function (d) {
     const el = document.createElement("div");
     el.className = "cal-dow";
     el.textContent = d;
@@ -481,8 +482,8 @@ function renderCalendar() {
 
   for (let d = 1; d <= daysInMonth; d++) {
     const key = dateKey(y, m, d);
-    const dayNotes = allNotes.filter(n => n.date === key);
-    const hasImportant = dayNotes.some(n => n.important);
+    const dayNotes = allNotes.filter(function (n) { return n.date === key; });
+    const hasImportant = dayNotes.some(function (n) { return n.important; });
     const el = document.createElement("div");
     el.className = "cal-day"
       + (key === todayKey ? " today" : "")
@@ -492,11 +493,11 @@ function renderCalendar() {
     let noteHtml = "";
     if (dayNotes.length) {
       const first = dayNotes[0];
-      noteHtml = `<span class="day-note">${first.important ? "⚠ " : ""}${escapeHtml(first.text)}</span>`;
-      if (dayNotes.length > 1) noteHtml += `<span class="day-note-more">+${dayNotes.length - 1} ещё</span>`;
+      noteHtml = '<span class="day-note">' + (first.important ? "⚠ " : "") + escapeHtml(first.text) + '</span>';
+      if (dayNotes.length > 1) noteHtml += '<span class="day-note-more">+' + (dayNotes.length - 1) + ' ещё</span>';
     }
-    el.innerHTML = `<span class="day-num">${d}</span>${noteHtml}`;
-    el.addEventListener("click", () => openModal(key));
+    el.innerHTML = '<span class="day-num">' + d + '</span>' + noteHtml;
+    el.addEventListener("click", function () { openModal(key); });
     calGrid.appendChild(el);
   }
 
@@ -505,48 +506,49 @@ function renderCalendar() {
 
 function renderUpcoming() {
   const todayStr = dateKey(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
-  const upcoming = allNotes.filter(n => n.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
+  const upcoming = allNotes.filter(function (n) { return n.date >= todayStr; })
+    .sort(function (a, b) { return a.date.localeCompare(b.date); }).slice(0, 8);
   upcomingList.innerHTML = "";
   if (!upcoming.length) {
-    upcomingList.innerHTML = `<li class="upcoming-item">пока нет запланированных дат 🎀</li>`;
+    upcomingList.innerHTML = '<li class="upcoming-item">пока нет запланированных дат</li>';
     return;
   }
-  upcoming.forEach(n => {
+  upcoming.forEach(function (n) {
     const li = document.createElement("li");
     li.className = "upcoming-item" + (n.important ? " important" : "");
-    const [yy, mm, dd] = n.date.split("-");
-    li.innerHTML = `<span>${n.important ? "⚠ " : ""}${escapeHtml(n.text)}</span><span class="u-date">${dd}.${mm}.${yy}</span>`;
+    const parts = n.date.split("-");
+    li.innerHTML = '<span>' + (n.important ? "⚠ " : "") + escapeHtml(n.text) + '</span><span class="u-date">' + parts[2] + "." + parts[1] + "." + parts[0] + '</span>';
     upcomingList.appendChild(li);
   });
 }
 
-document.getElementById("cal-prev").addEventListener("click", () => { viewDate.setMonth(viewDate.getMonth() - 1); renderCalendar(); });
-document.getElementById("cal-next").addEventListener("click", () => { viewDate.setMonth(viewDate.getMonth() + 1); renderCalendar(); });
+document.getElementById("cal-prev").addEventListener("click", function () { viewDate.setMonth(viewDate.getMonth() - 1); renderCalendar(); });
+document.getElementById("cal-next").addEventListener("click", function () { viewDate.setMonth(viewDate.getMonth() + 1); renderCalendar(); });
 
 function openModal(key) {
   selectedDateKey = key;
-  const [y, m, d] = key.split("-");
-  modalDateLabel.textContent = `${d}.${m}.${y}`;
+  const parts = key.split("-");
+  modalDateLabel.textContent = parts[2] + "." + parts[1] + "." + parts[0];
   renderModalNotes();
   modalOverlay.classList.add("open");
 }
 function closeModal() { modalOverlay.classList.remove("open"); noteForm.reset(); }
 document.getElementById("modal-close").addEventListener("click", closeModal);
-modalOverlay.addEventListener("click", (e) => { if (e.target === modalOverlay) closeModal(); });
+modalOverlay.addEventListener("click", function (e) { if (e.target === modalOverlay) closeModal(); });
 
 function renderModalNotes() {
-  const notes = allNotes.filter(n => n.date === selectedDateKey);
+  const notes = allNotes.filter(function (n) { return n.date === selectedDateKey; });
   modalNoteList.innerHTML = notes.length
-    ? notes.map(n => `<li class="note-item${n.important ? " important" : ""}">${n.important ? "⚠ " : ""}${escapeHtml(n.text)}</li>`).join("")
-    : `<li class="note-item">заметок пока нет</li>`;
+    ? notes.map(function (n) { return '<li class="note-item' + (n.important ? " important" : "") + '">' + (n.important ? "⚠ " : "") + escapeHtml(n.text) + '</li>'; }).join("")
+    : '<li class="note-item">заметок пока нет</li>';
 }
 
-noteForm.addEventListener("submit", (e) => {
+noteForm.addEventListener("submit", function (e) {
   e.preventDefault();
   const text = document.getElementById("note-text").value.trim();
   const important = document.getElementById("note-important").checked;
   if (!text || !selectedDateKey) return;
-  const note = { date: selectedDateKey, text, important, ts: Date.now() };
+  const note = { date: selectedDateKey, text: text, important: important, ts: Date.now() };
 
   if (cloudEnabled) {
     db.collection("notes").add(note);
@@ -563,8 +565,8 @@ noteForm.addEventListener("submit", (e) => {
 });
 
 if (cloudEnabled) {
-  db.collection("notes").onSnapshot(snap => {
-    allNotes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  db.collection("notes").onSnapshot(function (snap) {
+    allNotes = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
     renderCalendar();
     if (modalOverlay.classList.contains("open")) renderModalNotes();
   });
@@ -596,7 +598,7 @@ renderCalendar();
   const JUMP_V = -14.5;
   const PLAYER_X = 150, NPC_X = 96;
   const CHAR_W = 32, CHAR_H = 50;
-  const NPC_DELAY = 10; // кадров задержки — парень повторяет прыжки девушки
+  const NPC_DELAY = 10;
 
   let best = parseInt(localStorage.getItem("bowGameHighscore") || "0", 10);
   highscoreEl.textContent = best;
@@ -606,11 +608,11 @@ renderCalendar();
   const boyImg = new Image(); boyImg.src = "images/boy.png";
   const bgImg = new Image(); bgImg.src = "images/level-bg.jpg";
   let loadedCount = 0, assetsReady = false;
-  [girlImg, boyImg, bgImg].forEach(img => {
-    img.onload = () => { loadedCount++; if (loadedCount === 3) assetsReady = true; };
+  [girlImg, boyImg, bgImg].forEach(function (img) {
+    img.onload = function () { loadedCount++; if (loadedCount === 3) assetsReady = true; };
   });
 
-  let state = "title"; // title | playing | gameover
+  let state = "title";
   let player, scrollX, speed, score, gaps, roses, spawnGapTimer, spawnRoseTimer, playerHistory, frameCount;
 
   function resetGame() {
@@ -654,17 +656,17 @@ renderCalendar();
 
   btnStart.addEventListener("click", startGame);
   btnRestart.addEventListener("click", startGame);
-  window.addEventListener("keydown", (e) => {
+  window.addEventListener("keydown", function (e) {
     if (e.code === "Space") {
       e.preventDefault();
       if (state === "title" || state === "gameover") startGame();
       else jumpPlayer();
     }
   });
-  canvas.addEventListener("click", () => { if (state === "playing") jumpPlayer(); });
-  canvas.addEventListener("touchstart", (e) => { e.preventDefault(); if (state === "playing") jumpPlayer(); }, { passive: false });
+  canvas.addEventListener("click", function () { if (state === "playing") jumpPlayer(); });
+  canvas.addEventListener("touchstart", function (e) { e.preventDefault(); if (state === "playing") jumpPlayer(); }, { passive: false });
 
-  function isOverGap(x, w) { return gaps.some(g => x + w > g.x && x < g.x + g.w); }
+  function isOverGap(x, w) { return gaps.some(function (g) { return x + w > g.x && x < g.x + g.w; }); }
 
   function drawBackground() {
     if (!assetsReady) { ctx.fillStyle = "#2a1830"; ctx.fillRect(0, 0, W, H); return; }
@@ -676,14 +678,14 @@ renderCalendar();
   }
 
   function drawGround() {
-    const sorted = [...gaps].sort((a, b) => a.x - b.x);
+    const sorted = gaps.slice().sort(function (a, b) { return a.x - b.x; });
     ctx.fillStyle = "#3a2440";
     let segStart = 0;
-    sorted.forEach(g => { ctx.fillRect(segStart, GROUND_Y, Math.max(0, g.x - segStart), H - GROUND_Y); segStart = g.x + g.w; });
+    sorted.forEach(function (g) { ctx.fillRect(segStart, GROUND_Y, Math.max(0, g.x - segStart), H - GROUND_Y); segStart = g.x + g.w; });
     ctx.fillRect(segStart, GROUND_Y, W - segStart, H - GROUND_Y);
     ctx.fillStyle = "#ff9dc4";
     segStart = 0;
-    sorted.forEach(g => { ctx.fillRect(segStart, GROUND_Y, Math.max(0, g.x - segStart), 4); segStart = g.x + g.w; });
+    sorted.forEach(function (g) { ctx.fillRect(segStart, GROUND_Y, Math.max(0, g.x - segStart), 4); segStart = g.x + g.w; });
     ctx.fillRect(segStart, GROUND_Y, W - segStart, 4);
   }
 
@@ -744,17 +746,17 @@ renderCalendar();
       gaps.push({ x: W + 20, w: 40 + Math.random() * 50 });
       spawnGapTimer = 90 + Math.random() * 60;
     }
-    gaps.forEach(g => g.x -= speed);
-    gaps = gaps.filter(g => g.x + g.w > -20);
+    gaps.forEach(function (g) { g.x -= speed; });
+    gaps = gaps.filter(function (g) { return g.x + g.w > -20; });
 
     spawnRoseTimer--;
     if (spawnRoseTimer <= 0) {
       roses.push({ x: W + 20, y: GROUND_Y - 95 - Math.random() * 45, collected: false });
       spawnRoseTimer = 140 + Math.random() * 90;
     }
-    roses.forEach(r => r.x -= speed);
-    roses = roses.filter(r => r.x > -30 && !r.collected);
-    roses.forEach(r => {
+    roses.forEach(function (r) { r.x -= speed; });
+    roses = roses.filter(function (r) { return r.x > -30 && !r.collected; });
+    roses.forEach(function (r) {
       if (PLAYER_X < r.x + 16 && PLAYER_X + CHAR_W > r.x && player.y < r.y + 16 && player.y + CHAR_H > r.y) {
         r.collected = true; score += 25;
       }
