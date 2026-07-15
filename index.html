@@ -81,15 +81,45 @@
   <!-- PLAYLIST -->
   <section id="playlist" class="view pixel-box">
     <h2 class="section-title">🎧 наш плейлист</h2>
-    <p class="hint">добавляй сюда песни — они появятся у всех, кто открывает сайт.</p>
+    <p class="hint">вставь ссылку на YouTube, Spotify или прямой mp3-файл — название подтянется само.</p>
     <form id="song-form" class="song-form">
-      <input type="text" id="song-title" placeholder="название песни" required maxlength="80">
-      <input type="text" id="song-artist" placeholder="исполнитель" maxlength="60">
-      <input type="url" id="song-link" placeholder="ссылка (YouTube / Spotify / Яндекс.Музыка)" maxlength="300">
-      <input type="text" id="song-from" placeholder="от кого 💌 (необязательно)" maxlength="30">
-      <button type="submit" class="pixel-btn">＋ добавить песню</button>
+      <input type="url" id="song-link" placeholder="вставь ссылку сюда 🔗" required maxlength="300">
+      <button type="submit" class="pixel-btn">＋ добавить</button>
     </form>
     <div id="song-status" class="status-line"></div>
+
+    <!-- ===== плеер ===== -->
+    <div class="player">
+      <div class="player-cover">
+        <div id="yt-target"></div>
+        <div id="cover-placeholder" class="cover-placeholder">🎵</div>
+      </div>
+      <div class="player-body">
+        <div class="player-title" id="player-title">ничего не играет</div>
+        <div class="player-sub" id="player-sub">выбери песню из списка ниже</div>
+        <div class="progress-bar" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="time-row"><span id="time-current">0:00</span><span id="time-total">0:00</span></div>
+        <div class="player-controls">
+          <button id="btn-prev" class="pixel-btn small" title="предыдущая">⏮</button>
+          <button id="btn-playpause" class="pixel-btn small" title="play/pause">▶</button>
+          <button id="btn-next" class="pixel-btn small" title="следующая">⏭</button>
+          <button id="btn-stop" class="pixel-btn small" title="стоп">⏹</button>
+          <button id="btn-repeat" class="pixel-btn small" title="повтор">➡️</button>
+        </div>
+        <div class="player-controls secondary">
+          <span class="ctrl-label">скорость</span>
+          <button id="speed-down" class="pixel-btn small">🐢</button>
+          <span id="speed-label">1x</span>
+          <button id="speed-up" class="pixel-btn small">🐇</button>
+          <span class="ctrl-label">звук</span>
+          <button id="vol-down" class="pixel-btn small">🔉</button>
+          <input type="range" id="vol-slider" min="0" max="100" value="80">
+          <button id="vol-up" class="pixel-btn small">🔊</button>
+        </div>
+      </div>
+    </div>
+    <audio id="audio-el" preload="none"></audio>
+
     <ul id="song-list" class="song-list"></ul>
   </section>
 
@@ -112,12 +142,26 @@
 
   <!-- GAME -->
   <section id="game" class="view pixel-box">
-    <h2 class="section-title">🎮 прыг-прыг котик</h2>
-    <p class="hint">жми ПРОБЕЛ или тапни по экрану, чтобы прыгать через шипы 🌵💗</p>
+    <h2 class="section-title">🎮 бесконечный забег</h2>
+    <p class="hint">пробел / тап — прыжок через провалы. собирай розы 🌹, парень будет повторять твои прыжки следом.</p>
     <div class="game-wrap">
-      <canvas id="game-canvas" width="600" height="200"></canvas>
-      <div id="game-overlay" class="game-overlay">
-        <p id="game-msg">нажми, чтобы начать</p>
+      <canvas id="game-canvas" width="640" height="260"></canvas>
+
+      <div id="title-screen" class="title-screen">
+        <img src="images/title-bg.jpg" alt="" class="title-bg-img">
+        <div class="title-panel chunky-border">
+          <div class="title-scores">рекорд: <b id="title-highscore">0</b></div>
+          <button id="btn-start-game" class="pixel-btn">🎮 начать игру</button>
+        </div>
+      </div>
+
+      <div id="gameover-screen" class="gameover-screen" style="display:none;">
+        <div class="gameover-panel chunky-border">
+          <p class="section-title small-title">игра окончена 💔</p>
+          <p>счёт: <b id="final-score">0</b></p>
+          <p>рекорд: <b id="final-highscore">0</b></p>
+          <button id="btn-restart-game" class="pixel-btn">↻ ещё раз</button>
+        </div>
       </div>
     </div>
     <div class="game-scores">
