@@ -604,12 +604,15 @@ renderCalendar();
   highscoreEl.textContent = best;
   titleHighscoreEl.textContent = best;
 
-  const girlImg = new Image(); girlImg.src = "images/girl.png";
-  const boyImg = new Image(); boyImg.src = "images/boy.png";
-  const bgImg = new Image(); bgImg.src = "images/level-bg.jpg";
+  document.getElementById("title-bg-img").src = ASSET_TITLE_BG;
+
+  const girlImg = new Image(); girlImg.src = ASSET_GIRL;
+  const boyImg = new Image(); boyImg.src = ASSET_BOY;
+  const bgImg = new Image(); bgImg.src = ASSET_LEVEL_BG;
   let loadedCount = 0, assetsReady = false;
   [girlImg, boyImg, bgImg].forEach(function (img) {
     img.onload = function () { loadedCount++; if (loadedCount === 3) assetsReady = true; };
+    img.onerror = function () { console.error("не удалось загрузить картинку игры", img.src.slice(0, 40)); };
   });
 
   let state = "title";
