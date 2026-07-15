@@ -772,6 +772,3 @@ renderCalendar();
     requestAnimationFrame(loop);
   }
 })();
-JSEOF
-node -c /home/claude/site/app.js && echo "JS OK"
-Output
