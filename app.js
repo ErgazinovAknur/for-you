@@ -577,7 +577,11 @@ renderCalendar();
 
 /* =========================================================
    GAME: бесконечный забег в стиле Марио
-   девушка — игрок, парень — NPC, повторяет прыжки с задержкой
+   девушка — игрок, парень — NPC (повторяет прыжки с задержкой)
+   персонажи собраны из двух частей (верх/низ) и анимированы —
+   низ (юбка/полы пальто) покачивается на бегу как маятник;
+   земля — настоящая текстура ландшафта, по которой бежим,
+   за ней — параллакс-фон той же локации (едет медленнее).
    ========================================================= */
 (function () {
   const canvas = document.getElementById("game-canvas");
@@ -592,36 +596,65 @@ renderCalendar();
   const finalScoreEl = document.getElementById("final-score");
   const finalHighscoreEl = document.getElementById("final-highscore");
 
+  document.getElementById("title-bg-img").src = ASSET_TITLE_BG;
+
   const W = canvas.width, H = canvas.height;
-  const GROUND_Y = H - 46;
+  const GROUND_TILE_H = 70;           // высота полосы земли на экране
+  const GROUND_Y = H - GROUND_TILE_H; // уровень, на котором стоят ноги
   const GRAV = 0.85;
   const JUMP_V = -14.5;
   const PLAYER_X = 150, NPC_X = 96;
-  const CHAR_W = 32, CHAR_H = 50;
-  const NPC_DELAY = 10;
+  const NPC_DELAY = 10; // кадров задержки — парень повторяет прыжки девушки
 
   let best = parseInt(localStorage.getItem("bowGameHighscore") || "0", 10);
   highscoreEl.textContent = best;
   titleHighscoreEl.textContent = best;
 
-  document.getElementById("title-bg-img").src = ASSET_TITLE_BG;
+  /* ---- персонажи из двух частей (верх статичен, низ качается) ---- */
+  function makeCharacter(topSrc, bottomSrc, drawW) {
+    const top = new Image(); top.src = topSrc;
+    const bottom = new Image(); bottom.src = bottomSrc;
+    const c = { top, bottom, drawW, ready: false, topH: 0, bottomH: 0, totalH: 0 };
+    let loaded = 0;
+    function onOne() {
+      loaded++;
+      if (loaded === 2) {
+        const scale = drawW / top.naturalWidth;
+        c.topH = top.naturalHeight * scale;
+        c.bottomH = bottom.naturalHeight * scale;
+        // точка стыка верх/низ по экрану (с учётом нахлёста в 16px, чтобы не было щели при повороте низа)
+        c.pivotY = (top.naturalHeight - 16) * scale;
+        c.totalH = c.pivotY + c.bottomH;
+        c.scale = scale;
+        c.ready = true;
+      }
+    }
+    top.onload = onOne;
+    bottom.onload = onOne;
+    top.onerror = bottom.onerror = function () { console.error("не загрузилась часть спрайта персонажа"); };
+    return c;
+  }
 
-  const girlImg = new Image(); girlImg.src = ASSET_GIRL;
-  const boyImg = new Image(); boyImg.src = ASSET_BOY;
-  const bgImg = new Image(); bgImg.src = ASSET_LEVEL_BG;
-  let loadedCount = 0, assetsReady = false;
-  [girlImg, boyImg, bgImg].forEach(function (img) {
-    img.onload = function () { loadedCount++; if (loadedCount === 3) assetsReady = true; };
-    img.onerror = function () { console.error("не удалось загрузить картинку игры", img.src.slice(0, 40)); };
-  });
+  const girl = makeCharacter(ASSET_GIRL_TOP, ASSET_GIRL_BOTTOM, 34);
+  const boy = makeCharacter(ASSET_BOY_TOP, ASSET_BOY_BOTTOM, 38);
 
-  let state = "title";
-  let player, scrollX, speed, score, gaps, roses, spawnGapTimer, spawnRoseTimer, playerHistory, frameCount;
+  const backdropImg = new Image(); backdropImg.src = ASSET_BACKDROP;
+  const groundImg = new Image(); groundImg.src = ASSET_GROUND_TILE;
+  let backdropReady = false, groundReady = false;
+  backdropImg.onload = function () { backdropReady = true; };
+  groundImg.onload = function () { groundReady = true; };
+
+  let state = "title"; // title | playing | gameover
+  let player, bgScrollX, groundScrollX, speed, score, gaps, roses, spawnGapTimer, spawnRoseTimer, playerHistory, frameCount;
+
+  function charHeight(c) { return c.ready ? c.totalH : 50; }
 
   function resetGame() {
-    player = { y: GROUND_Y - CHAR_H, vy: 0, onGround: true };
-    scrollX = 0;
-    speed = 5.5;
+    const h = charHeight(girl);
+    player = { y: GROUND_Y - h, vy: 0, onGround: true };
+    bgScrollX = 0;
+    groundScrollX = 0;
+    speed = 5.2;
     score = 0;
     gaps = [];
     roses = [];
@@ -671,25 +704,57 @@ renderCalendar();
 
   function isOverGap(x, w) { return gaps.some(function (g) { return x + w > g.x && x < g.x + g.w; }); }
 
-  function drawBackground() {
-    if (!assetsReady) { ctx.fillStyle = "#2a1830"; ctx.fillRect(0, 0, W, H); return; }
-    const bw = bgImg.width * (H / bgImg.height);
-    scrollX -= speed * 0.4;
-    if (scrollX <= -bw) scrollX += bw;
-    let x = scrollX;
-    while (x < W) { ctx.drawImage(bgImg, x, 0, bw, H); x += bw; }
+  /* ---- фон: медленный параллакс из локации ---- */
+  function drawBackdrop() {
+    if (!backdropReady) { ctx.fillStyle = "#2a1830"; ctx.fillRect(0, 0, W, H); return; }
+    const bh = GROUND_Y; // фон занимает всё, что выше земли
+    const bw = backdropImg.naturalWidth * (bh / backdropImg.naturalHeight);
+    bgScrollX -= speed * 0.35;
+    if (bgScrollX <= -bw) bgScrollX += bw;
+    let x = bgScrollX;
+    while (x < W) { ctx.drawImage(backdropImg, x, 0, bw, bh); x += bw; }
   }
 
+  /* ---- земля: настоящая текстура ландшафта, зеркальный тайлинг без швов ---- */
   function drawGround() {
     const sorted = gaps.slice().sort(function (a, b) { return a.x - b.x; });
-    ctx.fillStyle = "#3a2440";
+
+    if (groundReady) {
+      const gw = groundImg.naturalWidth * (GROUND_TILE_H / groundImg.naturalHeight);
+      groundScrollX -= speed;
+      if (groundScrollX <= -gw * 2) groundScrollX += gw * 2;
+      let x = groundScrollX;
+      let i = Math.floor(-x / gw); // чётность для зеркалирования
+      while (x < W) {
+        ctx.save();
+        ctx.beginPath();
+        // вырезаем провалы прямо во время отрисовки полосы земли
+        ctx.rect(0, GROUND_Y, W, GROUND_TILE_H);
+        sorted.forEach(function (g) { ctx.rect(g.x, GROUND_Y - 1, g.w, GROUND_TILE_H + 2); });
+        ctx.clip("evenodd");
+        if (i % 2 === 0) {
+          ctx.drawImage(groundImg, x, GROUND_Y, gw, GROUND_TILE_H);
+        } else {
+          ctx.translate(x + gw, GROUND_Y);
+          ctx.scale(-1, 1);
+          ctx.drawImage(groundImg, 0, 0, gw, GROUND_TILE_H);
+        }
+        ctx.restore();
+        x += gw;
+        i++;
+      }
+    } else {
+      ctx.fillStyle = "#3a2440";
+      let segStart = 0;
+      sorted.forEach(function (g) { ctx.fillRect(segStart, GROUND_Y, Math.max(0, g.x - segStart), GROUND_TILE_H); segStart = g.x + g.w; });
+      ctx.fillRect(segStart, GROUND_Y, W - segStart, GROUND_TILE_H);
+    }
+
+    // светлая кромка на верхнем крае земли
+    ctx.fillStyle = "rgba(255,157,196,0.85)";
     let segStart = 0;
-    sorted.forEach(function (g) { ctx.fillRect(segStart, GROUND_Y, Math.max(0, g.x - segStart), H - GROUND_Y); segStart = g.x + g.w; });
-    ctx.fillRect(segStart, GROUND_Y, W - segStart, H - GROUND_Y);
-    ctx.fillStyle = "#ff9dc4";
-    segStart = 0;
-    sorted.forEach(function (g) { ctx.fillRect(segStart, GROUND_Y, Math.max(0, g.x - segStart), 4); segStart = g.x + g.w; });
-    ctx.fillRect(segStart, GROUND_Y, W - segStart, 4);
+    sorted.forEach(function (g) { ctx.fillRect(segStart, GROUND_Y, Math.max(0, g.x - segStart), 3); segStart = g.x + g.w; });
+    ctx.fillRect(segStart, GROUND_Y, W - segStart, 3);
   }
 
   function drawRose(r) {
@@ -699,37 +764,57 @@ renderCalendar();
     ctx.fillStyle = "#ffd166"; ctx.fillRect(x + 4, y + 4, 6, 6);
   }
 
-  function drawShadow(x, y) {
-    const h = Math.max(0, (GROUND_Y - CHAR_H) - y);
-    const scale = Math.max(0.35, 1 - h / 130);
+  function drawShadow(x, y, h) {
+    const airH = Math.max(0, (GROUND_Y - h) - y);
+    const scale = Math.max(0.35, 1 - airH / 130);
     ctx.fillStyle = "rgba(0,0,0,0.28)";
     ctx.beginPath();
-    ctx.ellipse(x + CHAR_W / 2, GROUND_Y + 2, 14 * scale, 4 * scale, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + 17 * scale, GROUND_Y + 2, 15 * scale, 4 * scale, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  function drawChar(img, x, y, onGround) {
-    const bob = onGround ? Math.sin(frameCount * 0.35) * 1.5 : 0;
-    drawShadow(x, y);
-    if (assetsReady && img.complete) {
-      ctx.drawImage(img, Math.round(x), Math.round(y - bob), CHAR_W, CHAR_H);
-    } else {
+  /* ---- анимированный персонаж: верх статичен, низ качается как маятник ---- */
+  function drawAnimatedChar(c, x, y, onGround) {
+    if (!c.ready) {
       ctx.fillStyle = "#e85c9c";
-      ctx.fillRect(x, y - bob, CHAR_W, CHAR_H);
+      ctx.fillRect(x, y, c.drawW, 50);
+      return;
     }
+    drawShadow(x, y, c.totalH);
+
+    const bob = onGround ? Math.sin(frameCount * 0.35) * 1.4 : 0;
+    const baseY = y - bob;
+    const pivotX = x + c.drawW / 2;
+    const pivotY = baseY + c.pivotY;
+
+    let angle;
+    if (onGround) {
+      angle = Math.sin(frameCount * 0.35) * 0.22; // покачивание юбки/пол на бегу
+    } else {
+      angle = -0.28; // ноги/подол чуть назад в прыжке
+    }
+
+    ctx.save();
+    ctx.translate(pivotX, pivotY);
+    ctx.rotate(angle);
+    ctx.drawImage(c.bottom, -c.drawW / 2, 0, c.drawW, c.bottomH);
+    ctx.restore();
+
+    ctx.drawImage(c.top, Math.round(x), Math.round(baseY), c.drawW, c.topH);
   }
 
   function loop() {
     if (state !== "playing") return;
     frameCount++;
     ctx.clearRect(0, 0, W, H);
-    drawBackground();
+    drawBackdrop();
 
-    const groundLevel = GROUND_Y - CHAR_H;
+    const h = charHeight(girl);
+    const groundLevel = GROUND_Y - h;
 
     player.vy += GRAV;
     player.y += player.vy;
-    const overGap = isOverGap(PLAYER_X, CHAR_W);
+    const overGap = isOverGap(PLAYER_X, girl.drawW);
     if (!overGap && player.y >= groundLevel) {
       player.y = groundLevel; player.vy = 0; player.onGround = true;
     } else {
@@ -741,7 +826,8 @@ renderCalendar();
     if (playerHistory.length > 500) playerHistory.shift();
     const histIdx = playerHistory.length - 1 - NPC_DELAY;
     const npcOffset = histIdx >= 0 ? playerHistory[histIdx] : 0;
-    const npcY = groundLevel - npcOffset;
+    const npcH = charHeight(boy);
+    const npcY = (GROUND_Y - npcH) - npcOffset;
     const npcOnGround = npcOffset <= 0.5;
 
     spawnGapTimer--;
@@ -760,19 +846,19 @@ renderCalendar();
     roses.forEach(function (r) { r.x -= speed; });
     roses = roses.filter(function (r) { return r.x > -30 && !r.collected; });
     roses.forEach(function (r) {
-      if (PLAYER_X < r.x + 16 && PLAYER_X + CHAR_W > r.x && player.y < r.y + 16 && player.y + CHAR_H > r.y) {
+      if (PLAYER_X < r.x + 16 && PLAYER_X + girl.drawW > r.x && player.y < r.y + 16 && player.y + h > r.y) {
         r.collected = true; score += 25;
       }
     });
 
     drawGround();
     roses.forEach(drawRose);
-    drawChar(boyImg, NPC_X, npcY, npcOnGround);
-    drawChar(girlImg, PLAYER_X, player.y, player.onGround);
+    drawAnimatedChar(boy, NPC_X, npcY, npcOnGround);
+    drawAnimatedChar(girl, PLAYER_X, player.y, player.onGround);
 
     score += 0.35;
     scoreEl.textContent = Math.floor(score);
-    speed = 5.5 + Math.floor(score / 250) * 0.6;
+    speed = 5.2 + Math.floor(score / 250) * 0.6;
 
     requestAnimationFrame(loop);
   }
