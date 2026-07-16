@@ -51,7 +51,7 @@ tabs.forEach(tab => {
   });
 });
 
-/* ================= HOME: daily message ================= */
+/* ================= HOME: сообщение в облачке по клику на картинку ================= */
 const dailyMessages = [
   "ты — лучшее, что случилось со мной в этом году 💗",
   "просто хотел(а) напомнить: ты потрясающая ✨",
@@ -60,12 +60,19 @@ const dailyMessages = [
   "улыбнись, тебя любят 🎀",
   "ты справишься со всем, во что упрёшься сегодня 💪💕",
 ];
-const dailyMsgEl = document.getElementById("daily-msg");
-function showRandomMsg() {
-  dailyMsgEl.textContent = dailyMessages[Math.floor(Math.random() * dailyMessages.length)];
-}
-showRandomMsg();
-document.getElementById("new-msg-btn").addEventListener("click", showRandomMsg);
+const homeImageWrap = document.getElementById("home-image-wrap");
+const homeBubbleText = document.getElementById("home-bubble-text");
+let lastMsgIdx = -1;
+homeImageWrap.addEventListener("click", () => {
+  let idx;
+  do { idx = Math.floor(Math.random() * dailyMessages.length); } while (idx === lastMsgIdx && dailyMessages.length > 1);
+  lastMsgIdx = idx;
+  homeBubbleText.style.opacity = "0";
+  setTimeout(() => {
+    homeBubbleText.textContent = dailyMessages[idx];
+    homeBubbleText.style.opacity = "1";
+  }, 120);
+});
 document.getElementById("year").textContent = new Date().getFullYear();
 
 /* =========================================================
