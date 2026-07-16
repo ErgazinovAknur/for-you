@@ -39,7 +39,6 @@
   <button class="tab active" data-tab="home" role="tab" aria-selected="true">🏠 ГЛАВНАЯ</button>
   <button class="tab" data-tab="playlist" role="tab" aria-selected="false">🎧 ПЛЕЙЛИСТ</button>
   <button class="tab" data-tab="calendar" role="tab" aria-selected="false">🗓️ КАЛЕНДАРЬ</button>
-  <button class="tab" data-tab="game" role="tab" aria-selected="false">🎮 ИГРА</button>
 </nav>
 
 <main>
@@ -49,7 +48,6 @@
     <div class="home-grid">
       <div class="mascot-wrap">
         <svg class="mascot" viewBox="0 0 32 32" shape-rendering="crispEdges" aria-hidden="true">
-          <!-- pixel cat with bow -->
           <rect x="8" y="4" width="4" height="4" fill="#ffcfe3"/>
           <rect x="20" y="4" width="4" height="4" fill="#ffcfe3"/>
           <rect x="8" y="8" width="16" height="12" fill="#ffcfe3"/>
@@ -71,7 +69,6 @@
           <ul class="home-list">
             <li>🎧 плейлист, который можно пополнять вместе</li>
             <li>🗓️ календарь с важными датами и дедлайнами</li>
-            <li>🎮 мини-игра, чтобы отвлечься и попрыгать</li>
           </ul>
         </div>
       </div>
@@ -81,9 +78,11 @@
   <!-- PLAYLIST -->
   <section id="playlist" class="view pixel-box">
     <h2 class="section-title">🎧 наш плейлист</h2>
-    <p class="hint">вставь ссылку на YouTube, Spotify или прямой mp3-файл — название подтянется само.</p>
+    <p class="hint">вставь ссылку на YouTube, Spotify или прямой mp3-файл — название подтянется само. можно разложить песни по сборникам.</p>
     <form id="song-form" class="song-form">
       <input type="url" id="song-link" placeholder="вставь ссылку сюда 🔗" required maxlength="300">
+      <input type="text" id="song-group" placeholder="сборник (необязательно)" list="group-options" maxlength="40">
+      <datalist id="group-options"></datalist>
       <button type="submit" class="pixel-btn">＋ добавить</button>
     </form>
     <div id="song-status" class="status-line"></div>
@@ -120,7 +119,7 @@
     </div>
     <audio id="audio-el" preload="none"></audio>
 
-    <ul id="song-list" class="song-list"></ul>
+    <div id="song-groups"></div>
   </section>
 
   <!-- CALENDAR -->
@@ -130,44 +129,23 @@
 
     <div class="cal-nav">
       <button id="cal-prev" class="pixel-btn small">◀</button>
-      <span id="cal-month-label" class="cal-month-label"></span>
+      <button id="cal-month-label" class="cal-month-label" type="button">июль 2026</button>
       <button id="cal-next" class="pixel-btn small">▶</button>
+    </div>
+
+    <div id="month-picker" class="month-picker chunky-border">
+      <div class="mp-year-row">
+        <button id="mp-year-prev" class="pixel-btn small">◀</button>
+        <span id="mp-year-label" class="mp-year-label"></span>
+        <button id="mp-year-next" class="pixel-btn small">▶</button>
+      </div>
+      <div id="mp-months" class="mp-months"></div>
     </div>
 
     <div id="cal-grid" class="cal-grid"></div>
 
     <h3 class="section-title small-title">📌 ближайшие важные даты</h3>
     <ul id="upcoming-list" class="upcoming-list"></ul>
-  </section>
-
-  <!-- GAME -->
-  <section id="game" class="view pixel-box">
-    <h2 class="section-title">🎮 бесконечный забег</h2>
-    <p class="hint">пробел / тап — прыжок через провалы. собирай розы 🌹, парень будет повторять твои прыжки следом.</p>
-    <div class="game-wrap">
-      <canvas id="game-canvas" width="640" height="260"></canvas>
-
-      <div id="title-screen" class="title-screen">
-        <img id="title-bg-img" alt="" class="title-bg-img">
-        <div class="title-panel chunky-border">
-          <div class="title-scores">рекорд: <b id="title-highscore">0</b></div>
-          <button id="btn-start-game" class="pixel-btn">🎮 начать игру</button>
-        </div>
-      </div>
-
-      <div id="gameover-screen" class="gameover-screen" style="display:none;">
-        <div class="gameover-panel chunky-border">
-          <p class="section-title small-title">игра окончена 💔</p>
-          <p>счёт: <b id="final-score">0</b></p>
-          <p>рекорд: <b id="final-highscore">0</b></p>
-          <button id="btn-restart-game" class="pixel-btn">↻ ещё раз</button>
-        </div>
-      </div>
-    </div>
-    <div class="game-scores">
-      <span>счёт: <b id="score">0</b></span>
-      <span>рекорд: <b id="highscore">0</b></span>
-    </div>
   </section>
 
 </main>
@@ -195,7 +173,6 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="assets.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

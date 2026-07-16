@@ -58,7 +58,6 @@ const dailyMessages = [
   "если скучаешь — открой плейлист, там кое-что для тебя 🎧",
   "не забудь про важные даты в календаре 🗓️",
   "улыбнись, тебя любят 🎀",
-  "сегодня отличный день, чтобы попрыгать в игру ниже 🐾",
   "ты справишься со всем, во что упрёшься сегодня 💪💕",
 ];
 const dailyMsgEl = document.getElementById("daily-msg");
@@ -73,8 +72,9 @@ document.getElementById("year").textContent = new Date().getFullYear();
    PLAYLIST + ВСТРОЕННЫЙ ПЛЕЕР
    ========================================================= */
 const songForm = document.getElementById("song-form");
-const songList = document.getElementById("song-list");
+const songGroupsEl = document.getElementById("song-groups");
 const songStatus = document.getElementById("song-status");
+const groupOptionsEl = document.getElementById("group-options");
 const audioEl = document.getElementById("audio-el");
 
 let songsCache = [];
@@ -118,11 +118,13 @@ async function fetchTitle(url, type) {
   return "без названия";
 }
 
-/* ---- добавление песни (только ссылка) ---- */
+/* ---- добавление песни (ссылка + необязательный сборник) ---- */
 songForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const urlInput = document.getElementById("song-link");
+  const groupInput = document.getElementById("song-group");
   const url = urlInput.value.trim();
+  const group = groupInput.value.trim();
   if (!url) return;
   const type = detectSongType(url);
   if (!type) {
@@ -131,7 +133,7 @@ songForm.addEventListener("submit", async (e) => {
   }
   songStatus.textContent = "добавляю...";
   const title = await fetchTitle(url, type);
-  const song = { url, type, title, ts: Date.now() };
+  const song = { url, type, title, group, ts: Date.now() };
 
   if (cloudEnabled) {
     db.collection("songs").add(song)
@@ -145,7 +147,8 @@ songForm.addEventListener("submit", async (e) => {
     renderSongs(songs);
     songStatus.textContent = "добавлено локально (настрой Firebase, чтобы делиться онлайн)";
   }
-  songForm.reset();
+  urlInput.value = ""; // поле сборника нарочно не чистим — удобно добавлять несколько песен подряд в один сборник
+  urlInput.focus();
 });
 
 function deleteSong(id) {
@@ -168,33 +171,76 @@ function toggleSpotifyEmbed(song) {
     : '<a href="' + escapeAttr(song.url) + '" target="_blank" rel="noopener">открыть в Spotify</a>';
 }
 
+function groupKeyOf(song) {
+  const g = (song.group || "").trim();
+  return g || "Без сборника";
+}
+
 function renderSongs(songs) {
   songsCache = songs;
-  songList.innerHTML = "";
+  songGroupsEl.innerHTML = "";
+
+  const groupNames = Array.from(new Set(songs.map(s => (s.group || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ru"));
+  groupOptionsEl.innerHTML = groupNames.map(g => '<option value="' + escapeAttr(g) + '"></option>').join("");
+
   if (!songs.length) {
-    songList.innerHTML = '<li class="song-item"><span>пока пусто... вставь первую ссылку</span></li>';
+    songGroupsEl.innerHTML = '<p class="empty-hint">пока пусто... вставь первую ссылку 🎀</p>';
     return;
   }
+
+  const groups = new Map();
   songs.forEach((song, idx) => {
-    const li = document.createElement("li");
-    li.className = "song-item" + (idx === currentIndex ? " now-playing" : "");
-    const icon = song.type === "youtube" ? "▶️" : song.type === "spotify" ? "🟢" : "🎵";
-    li.innerHTML =
-      '<div class="song-row">' +
-        '<button class="song-select" data-idx="' + idx + '">' +
-          '<span class="song-icon">' + icon + '</span>' +
-          '<span class="song-title-text">' + escapeHtml(song.title || "без названия") + '</span>' +
-        '</button>' +
-        '<div class="song-actions"><button class="del" data-id="' + song.id + '">✕</button></div>' +
-      '</div>' +
-      (song.type === "spotify" ? '<div class="embed-holder" id="embed-' + song.id + '"></div>' : "");
-    songList.appendChild(li);
+    const key = groupKeyOf(song);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(idx);
+  });
+  const orderedKeys = Array.from(groups.keys()).sort((a, b) => {
+    if (a === "Без сборника") return 1;
+    if (b === "Без сборника") return -1;
+    return a.localeCompare(b, "ru");
   });
 
-  songList.querySelectorAll(".del").forEach(btn => {
+  orderedKeys.forEach(key => {
+    const idxs = groups.get(key);
+    const details = document.createElement("details");
+    details.className = "song-group";
+    details.open = true;
+
+    const summary = document.createElement("summary");
+    summary.innerHTML = "<span>" + (key === "Без сборника" ? "🎵 " : "📀 ") + escapeHtml(key) + "</span><span class=\"group-count\">" + idxs.length + "</span>";
+    details.appendChild(summary);
+
+    const body = document.createElement("div");
+    body.className = "song-group-body";
+    const ul = document.createElement("ul");
+    ul.className = "song-list";
+
+    idxs.forEach(idx => {
+      const song = songs[idx];
+      const li = document.createElement("li");
+      li.className = "song-item" + (idx === currentIndex ? " now-playing" : "");
+      const icon = song.type === "youtube" ? "▶️" : song.type === "spotify" ? "🟢" : "🎵";
+      li.innerHTML =
+        '<div class="song-row">' +
+          '<button class="song-select" data-idx="' + idx + '">' +
+            '<span class="song-icon">' + icon + '</span>' +
+            '<span class="song-title-text">' + escapeHtml(song.title || "без названия") + '</span>' +
+          '</button>' +
+          '<div class="song-actions"><button class="del" data-id="' + song.id + '">✕</button></div>' +
+        '</div>' +
+        (song.type === "spotify" ? '<div class="embed-holder" id="embed-' + song.id + '"></div>' : "");
+      ul.appendChild(li);
+    });
+
+    body.appendChild(ul);
+    details.appendChild(body);
+    songGroupsEl.appendChild(details);
+  });
+
+  songGroupsEl.querySelectorAll(".del").forEach(btn => {
     btn.addEventListener("click", (e) => { e.stopPropagation(); deleteSong(btn.dataset.id); });
   });
-  songList.querySelectorAll(".song-select").forEach(btn => {
+  songGroupsEl.querySelectorAll(".song-select").forEach(btn => {
     btn.addEventListener("click", () => {
       const idx = parseInt(btn.dataset.idx, 10);
       const song = songsCache[idx];
@@ -525,6 +571,46 @@ function renderUpcoming() {
 document.getElementById("cal-prev").addEventListener("click", function () { viewDate.setMonth(viewDate.getMonth() - 1); renderCalendar(); });
 document.getElementById("cal-next").addEventListener("click", function () { viewDate.setMonth(viewDate.getMonth() + 1); renderCalendar(); });
 
+/* ---- пикер месяца/года: клик по названию месяца открывает быстрый выбор ---- */
+const monthPicker = document.getElementById("month-picker");
+const mpYearLabel = document.getElementById("mp-year-label");
+const mpMonths = document.getElementById("mp-months");
+let pickerYear = viewDate.getFullYear();
+
+function renderMonthPicker() {
+  mpYearLabel.textContent = pickerYear;
+  mpMonths.innerHTML = "";
+  MONTHS_RU.forEach(function (name, i) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mp-month-btn" + (pickerYear === viewDate.getFullYear() && i === viewDate.getMonth() ? " current" : "");
+    btn.textContent = name.slice(0, 3);
+    btn.addEventListener("click", function () {
+      viewDate = new Date(pickerYear, i, 1);
+      renderCalendar();
+      closeMonthPicker();
+    });
+    mpMonths.appendChild(btn);
+  });
+}
+function openMonthPicker() {
+  pickerYear = viewDate.getFullYear();
+  renderMonthPicker();
+  monthPicker.classList.add("open");
+}
+function closeMonthPicker() { monthPicker.classList.remove("open"); }
+
+calLabel.addEventListener("click", function (e) {
+  e.stopPropagation();
+  if (monthPicker.classList.contains("open")) closeMonthPicker();
+  else openMonthPicker();
+});
+document.getElementById("mp-year-prev").addEventListener("click", function () { pickerYear--; renderMonthPicker(); });
+document.getElementById("mp-year-next").addEventListener("click", function () { pickerYear++; renderMonthPicker(); });
+document.addEventListener("click", function (e) {
+  if (!monthPicker.contains(e.target) && e.target !== calLabel) closeMonthPicker();
+});
+
 function openModal(key) {
   selectedDateKey = key;
   const parts = key.split("-");
@@ -536,11 +622,31 @@ function closeModal() { modalOverlay.classList.remove("open"); noteForm.reset();
 document.getElementById("modal-close").addEventListener("click", closeModal);
 modalOverlay.addEventListener("click", function (e) { if (e.target === modalOverlay) closeModal(); });
 
+function deleteNote(id) {
+  if (cloudEnabled) {
+    db.collection("notes").doc(id).delete();
+  } else {
+    const notes = localStore.read("notes", []).filter(function (n) { return n.id !== id; });
+    localStore.write("notes", notes);
+    allNotes = notes;
+    renderCalendar();
+    renderModalNotes();
+  }
+}
+
 function renderModalNotes() {
   const notes = allNotes.filter(function (n) { return n.date === selectedDateKey; });
   modalNoteList.innerHTML = notes.length
-    ? notes.map(function (n) { return '<li class="note-item' + (n.important ? " important" : "") + '">' + (n.important ? "⚠ " : "") + escapeHtml(n.text) + '</li>'; }).join("")
-    : '<li class="note-item">заметок пока нет</li>';
+    ? notes.map(function (n) {
+        return '<li class="note-item' + (n.important ? " important" : "") + '">' +
+          '<span class="note-text">' + (n.important ? "⚠ " : "") + escapeHtml(n.text) + '</span>' +
+          '<button class="note-del" data-id="' + n.id + '" title="удалить">✕</button>' +
+        '</li>';
+      }).join("")
+    : '<li class="note-item"><span class="note-text">заметок пока нет</span></li>';
+  modalNoteList.querySelectorAll(".note-del").forEach(function (btn) {
+    btn.addEventListener("click", function () { deleteNote(btn.dataset.id); });
+  });
 }
 
 noteForm.addEventListener("submit", function (e) {
@@ -575,291 +681,3 @@ if (cloudEnabled) {
 }
 renderCalendar();
 
-/* =========================================================
-   GAME: бесконечный забег в стиле Марио
-   девушка — игрок, парень — NPC (повторяет прыжки с задержкой)
-   персонажи собраны из двух частей (верх/низ) и анимированы —
-   низ (юбка/полы пальто) покачивается на бегу как маятник;
-   земля — настоящая текстура ландшафта, по которой бежим,
-   за ней — параллакс-фон той же локации (едет медленнее).
-   ========================================================= */
-(function () {
-  const canvas = document.getElementById("game-canvas");
-  const ctx = canvas.getContext("2d");
-  const titleScreen = document.getElementById("title-screen");
-  const gameoverScreen = document.getElementById("gameover-screen");
-  const btnStart = document.getElementById("btn-start-game");
-  const btnRestart = document.getElementById("btn-restart-game");
-  const scoreEl = document.getElementById("score");
-  const highscoreEl = document.getElementById("highscore");
-  const titleHighscoreEl = document.getElementById("title-highscore");
-  const finalScoreEl = document.getElementById("final-score");
-  const finalHighscoreEl = document.getElementById("final-highscore");
-
-  document.getElementById("title-bg-img").src = ASSET_TITLE_BG;
-
-  const W = canvas.width, H = canvas.height;
-  const GROUND_TILE_H = 70;           // высота полосы земли на экране
-  const GROUND_Y = H - GROUND_TILE_H; // уровень, на котором стоят ноги
-  const GRAV = 0.85;
-  const JUMP_V = -14.5;
-  const PLAYER_X = 150, NPC_X = 96;
-  const NPC_DELAY = 10; // кадров задержки — парень повторяет прыжки девушки
-
-  let best = parseInt(localStorage.getItem("bowGameHighscore") || "0", 10);
-  highscoreEl.textContent = best;
-  titleHighscoreEl.textContent = best;
-
-  /* ---- персонажи из двух частей (верх статичен, низ качается) ---- */
-  function makeCharacter(topSrc, bottomSrc, drawW) {
-    const top = new Image(); top.src = topSrc;
-    const bottom = new Image(); bottom.src = bottomSrc;
-    const c = { top, bottom, drawW, ready: false, topH: 0, bottomH: 0, totalH: 0 };
-    let loaded = 0;
-    function onOne() {
-      loaded++;
-      if (loaded === 2) {
-        const scale = drawW / top.naturalWidth;
-        c.topH = top.naturalHeight * scale;
-        c.bottomH = bottom.naturalHeight * scale;
-        // точка стыка верх/низ по экрану (с учётом нахлёста в 16px, чтобы не было щели при повороте низа)
-        c.pivotY = (top.naturalHeight - 16) * scale;
-        c.totalH = c.pivotY + c.bottomH;
-        c.scale = scale;
-        c.ready = true;
-      }
-    }
-    top.onload = onOne;
-    bottom.onload = onOne;
-    top.onerror = bottom.onerror = function () { console.error("не загрузилась часть спрайта персонажа"); };
-    return c;
-  }
-
-  const girl = makeCharacter(ASSET_GIRL_TOP, ASSET_GIRL_BOTTOM, 34);
-  const boy = makeCharacter(ASSET_BOY_TOP, ASSET_BOY_BOTTOM, 38);
-
-  const backdropImg = new Image(); backdropImg.src = ASSET_BACKDROP;
-  const groundImg = new Image(); groundImg.src = ASSET_GROUND_TILE;
-  let backdropReady = false, groundReady = false;
-  backdropImg.onload = function () { backdropReady = true; };
-  groundImg.onload = function () { groundReady = true; };
-
-  let state = "title"; // title | playing | gameover
-  let player, bgScrollX, groundScrollX, speed, score, gaps, roses, spawnGapTimer, spawnRoseTimer, playerHistory, frameCount;
-
-  function charHeight(c) { return c.ready ? c.totalH : 50; }
-
-  function resetGame() {
-    const h = charHeight(girl);
-    player = { y: GROUND_Y - h, vy: 0, onGround: true };
-    bgScrollX = 0;
-    groundScrollX = 0;
-    speed = 5.2;
-    score = 0;
-    gaps = [];
-    roses = [];
-    playerHistory = [];
-    spawnGapTimer = 80;
-    spawnRoseTimer = 120;
-    frameCount = 0;
-    scoreEl.textContent = "0";
-  }
-
-  function startGame() {
-    resetGame();
-    state = "playing";
-    titleScreen.style.display = "none";
-    gameoverScreen.style.display = "none";
-    requestAnimationFrame(loop);
-  }
-
-  function endGame() {
-    state = "gameover";
-    const finalScore = Math.floor(score);
-    best = Math.max(best, finalScore);
-    localStorage.setItem("bowGameHighscore", best);
-    highscoreEl.textContent = best;
-    titleHighscoreEl.textContent = best;
-    finalScoreEl.textContent = finalScore;
-    finalHighscoreEl.textContent = best;
-    gameoverScreen.style.display = "flex";
-  }
-
-  function jumpPlayer() {
-    if (state !== "playing") return;
-    if (player.onGround) { player.vy = JUMP_V; player.onGround = false; }
-  }
-
-  btnStart.addEventListener("click", startGame);
-  btnRestart.addEventListener("click", startGame);
-  window.addEventListener("keydown", function (e) {
-    if (e.code === "Space") {
-      e.preventDefault();
-      if (state === "title" || state === "gameover") startGame();
-      else jumpPlayer();
-    }
-  });
-  canvas.addEventListener("click", function () { if (state === "playing") jumpPlayer(); });
-  canvas.addEventListener("touchstart", function (e) { e.preventDefault(); if (state === "playing") jumpPlayer(); }, { passive: false });
-
-  function isOverGap(x, w) { return gaps.some(function (g) { return x + w > g.x && x < g.x + g.w; }); }
-
-  /* ---- фон: медленный параллакс из локации ---- */
-  function drawBackdrop() {
-    if (!backdropReady) { ctx.fillStyle = "#2a1830"; ctx.fillRect(0, 0, W, H); return; }
-    const bh = GROUND_Y; // фон занимает всё, что выше земли
-    const bw = backdropImg.naturalWidth * (bh / backdropImg.naturalHeight);
-    bgScrollX -= speed * 0.35;
-    if (bgScrollX <= -bw) bgScrollX += bw;
-    let x = bgScrollX;
-    while (x < W) { ctx.drawImage(backdropImg, x, 0, bw, bh); x += bw; }
-  }
-
-  /* ---- земля: настоящая текстура ландшафта, зеркальный тайлинг без швов ---- */
-  function drawGround() {
-    const sorted = gaps.slice().sort(function (a, b) { return a.x - b.x; });
-
-    if (groundReady) {
-      const gw = groundImg.naturalWidth * (GROUND_TILE_H / groundImg.naturalHeight);
-      groundScrollX -= speed;
-      if (groundScrollX <= -gw * 2) groundScrollX += gw * 2;
-      let x = groundScrollX;
-      let i = Math.floor(-x / gw); // чётность для зеркалирования
-      while (x < W) {
-        ctx.save();
-        ctx.beginPath();
-        // вырезаем провалы прямо во время отрисовки полосы земли
-        ctx.rect(0, GROUND_Y, W, GROUND_TILE_H);
-        sorted.forEach(function (g) { ctx.rect(g.x, GROUND_Y - 1, g.w, GROUND_TILE_H + 2); });
-        ctx.clip("evenodd");
-        if (i % 2 === 0) {
-          ctx.drawImage(groundImg, x, GROUND_Y, gw, GROUND_TILE_H);
-        } else {
-          ctx.translate(x + gw, GROUND_Y);
-          ctx.scale(-1, 1);
-          ctx.drawImage(groundImg, 0, 0, gw, GROUND_TILE_H);
-        }
-        ctx.restore();
-        x += gw;
-        i++;
-      }
-    } else {
-      ctx.fillStyle = "#3a2440";
-      let segStart = 0;
-      sorted.forEach(function (g) { ctx.fillRect(segStart, GROUND_Y, Math.max(0, g.x - segStart), GROUND_TILE_H); segStart = g.x + g.w; });
-      ctx.fillRect(segStart, GROUND_Y, W - segStart, GROUND_TILE_H);
-    }
-
-    // светлая кромка на верхнем крае земли
-    ctx.fillStyle = "rgba(255,157,196,0.85)";
-    let segStart = 0;
-    sorted.forEach(function (g) { ctx.fillRect(segStart, GROUND_Y, Math.max(0, g.x - segStart), 3); segStart = g.x + g.w; });
-    ctx.fillRect(segStart, GROUND_Y, W - segStart, 3);
-  }
-
-  function drawRose(r) {
-    const x = Math.round(r.x), y = Math.round(r.y);
-    ctx.fillStyle = "#3a2440"; ctx.fillRect(x + 5, y + 14, 4, 12);
-    ctx.fillStyle = "#e85c9c"; ctx.fillRect(x, y, 14, 14);
-    ctx.fillStyle = "#ffd166"; ctx.fillRect(x + 4, y + 4, 6, 6);
-  }
-
-  function drawShadow(x, y, h) {
-    const airH = Math.max(0, (GROUND_Y - h) - y);
-    const scale = Math.max(0.35, 1 - airH / 130);
-    ctx.fillStyle = "rgba(0,0,0,0.28)";
-    ctx.beginPath();
-    ctx.ellipse(x + 17 * scale, GROUND_Y + 2, 15 * scale, 4 * scale, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  /* ---- анимированный персонаж: верх статичен, низ качается как маятник ---- */
-  function drawAnimatedChar(c, x, y, onGround) {
-    if (!c.ready) {
-      ctx.fillStyle = "#e85c9c";
-      ctx.fillRect(x, y, c.drawW, 50);
-      return;
-    }
-    drawShadow(x, y, c.totalH);
-
-    const bob = onGround ? Math.sin(frameCount * 0.35) * 1.4 : 0;
-    const baseY = y - bob;
-    const pivotX = x + c.drawW / 2;
-    const pivotY = baseY + c.pivotY;
-
-    let angle;
-    if (onGround) {
-      angle = Math.sin(frameCount * 0.35) * 0.22; // покачивание юбки/пол на бегу
-    } else {
-      angle = -0.28; // ноги/подол чуть назад в прыжке
-    }
-
-    ctx.save();
-    ctx.translate(pivotX, pivotY);
-    ctx.rotate(angle);
-    ctx.drawImage(c.bottom, -c.drawW / 2, 0, c.drawW, c.bottomH);
-    ctx.restore();
-
-    ctx.drawImage(c.top, Math.round(x), Math.round(baseY), c.drawW, c.topH);
-  }
-
-  function loop() {
-    if (state !== "playing") return;
-    frameCount++;
-    ctx.clearRect(0, 0, W, H);
-    drawBackdrop();
-
-    const h = charHeight(girl);
-    const groundLevel = GROUND_Y - h;
-
-    player.vy += GRAV;
-    player.y += player.vy;
-    const overGap = isOverGap(PLAYER_X, girl.drawW);
-    if (!overGap && player.y >= groundLevel) {
-      player.y = groundLevel; player.vy = 0; player.onGround = true;
-    } else {
-      player.onGround = false;
-    }
-    if (player.y > H + 80) { endGame(); return; }
-
-    playerHistory.push(groundLevel - player.y);
-    if (playerHistory.length > 500) playerHistory.shift();
-    const histIdx = playerHistory.length - 1 - NPC_DELAY;
-    const npcOffset = histIdx >= 0 ? playerHistory[histIdx] : 0;
-    const npcH = charHeight(boy);
-    const npcY = (GROUND_Y - npcH) - npcOffset;
-    const npcOnGround = npcOffset <= 0.5;
-
-    spawnGapTimer--;
-    if (spawnGapTimer <= 0) {
-      gaps.push({ x: W + 20, w: 40 + Math.random() * 50 });
-      spawnGapTimer = 90 + Math.random() * 60;
-    }
-    gaps.forEach(function (g) { g.x -= speed; });
-    gaps = gaps.filter(function (g) { return g.x + g.w > -20; });
-
-    spawnRoseTimer--;
-    if (spawnRoseTimer <= 0) {
-      roses.push({ x: W + 20, y: GROUND_Y - 95 - Math.random() * 45, collected: false });
-      spawnRoseTimer = 140 + Math.random() * 90;
-    }
-    roses.forEach(function (r) { r.x -= speed; });
-    roses = roses.filter(function (r) { return r.x > -30 && !r.collected; });
-    roses.forEach(function (r) {
-      if (PLAYER_X < r.x + 16 && PLAYER_X + girl.drawW > r.x && player.y < r.y + 16 && player.y + h > r.y) {
-        r.collected = true; score += 25;
-      }
-    });
-
-    drawGround();
-    roses.forEach(drawRose);
-    drawAnimatedChar(boy, NPC_X, npcY, npcOnGround);
-    drawAnimatedChar(girl, PLAYER_X, player.y, player.onGround);
-
-    score += 0.35;
-    scoreEl.textContent = Math.floor(score);
-    speed = 5.2 + Math.floor(score / 250) * 0.6;
-
-    requestAnimationFrame(loop);
-  }
-})();
